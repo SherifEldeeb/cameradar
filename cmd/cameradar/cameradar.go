@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,8 @@ func parseArguments() error {
 	pflag.BoolP("debug", "d", false, "Enable the debug logs")
 	pflag.BoolP("verbose", "v", false, "Enable the verbose logs")
 	pflag.BoolP("help", "h", false, "displays this help message")
+
+	pflag.BoolP("no-nmap", "n", false, "disable the nmap scan (all devices will be 'Generic'")
 
 	viper.AutomaticEnv()
 
@@ -77,9 +80,29 @@ func main() {
 		printErr(err)
 	}
 
-	scanResult, err := c.Scan()
-	if err != nil {
-		printErr(err)
+	var scanResult = make([]cameradar.Stream, 0)
+
+	if viper.GetBool("no-nmap") {
+		for _, t := range viper.GetStringSlice("targets") {
+			for _, p := range viper.GetStringSlice("ports") {
+				p16, err := strconv.Atoi(p)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				scanResult = append(scanResult, cameradar.Stream{
+					Device:  "GENERIC",
+					Address: t,
+					Port:    uint16(p16),
+				})
+			}
+		}
+
+	} else {
+		scanResult, err = c.Scan()
+		if err != nil {
+			printErr(err)
+		}
 	}
 
 	streams, err := c.Attack(scanResult)
